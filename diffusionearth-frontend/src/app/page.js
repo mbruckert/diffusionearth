@@ -1,7 +1,14 @@
 "use client";
-import React, { useState } from "react";
+import Link from "next/link";
+import React, { useState, useEffect } from "react";
 
 export default function Home() {
+  const [fileName, setFileName] = useState("");
+  const [portalReady, setPortalReady] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [backgroundImage, setBackgroundImage] = useState('url("/street.png")');
+  const [buttonOpacity, setButtonOpacity] = useState(0);
+
   const morphs = [
     // First shape
     `M0.412,0.004 C0.496,0.007,0.579,0.033,0.651,0.075 C0.72,0.115,0.789,0.168,0.818,0.241 C0.845,0.312,0.772,0.395,0.802,0.466 C0.839,0.556,0.992,0.584,1,0.681 C1,0.765,0.907,0.827,0.835,0.876 C0.77,0.921,0.687,0.925,0.61,0.948 C0.544,0.968,0.482,1,0.412,1 C0.343,0.998,0.292,0.943,0.228,0.919 C0.158,0.893,0.057,0.915,0.017,0.855 C-0.025,0.791,0.039,0.709,0.039,0.634 C0.039,0.576,0.022,0.522,0.018,0.465 C0.013,0.391,-0.015,0.315,0.011,0.244 C0.038,0.169,0.095,0.102,0.166,0.06 C0.238,0.017,0.327,0.002,0.412,0.004`,
@@ -67,11 +74,6 @@ export default function Home() {
     </>
   );
 
-  const [fileName, setFileName] = useState("");
-  const [portalReady, setPortalReady] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [backgroundImage, setBackgroundImage] = useState('url("/street.png")');
-
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -83,6 +85,14 @@ export default function Home() {
       reader.readAsDataURL(file);
     }
   };
+
+  useEffect(() => {
+    if (portalReady) {
+      setTimeout(() => setButtonOpacity(1), 100);
+    } else {
+      setButtonOpacity(0);
+    }
+  }, [portalReady]);
 
   const handleSimulate = () => {
     if (uploadedImage) {
@@ -221,21 +231,26 @@ export default function Home() {
           <MorphingBlob />
           {portalReady && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <button className="bg-white rounded-lg p-2 w-1/4 font-bold hover:bg-blue-100 text-blue-500 transition-colors duration-300 flex items-center justify-center gap-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="size-5"
+              <Link href="/viewer">
+                <button
+                  className="bg-white rounded-lg p-2 font-bold hover:bg-blue-100 text-blue-500 flex items-center justify-center gap-3 transition-all duration-500"
+                  style={{ opacity: buttonOpacity }}
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M15 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V5.56l-3.97 3.97a.75.75 0 1 1-1.06-1.06l3.97-3.97h-2.69a.75.75 0 0 1-.75-.75Zm-12 0A.75.75 0 0 1 3.75 3h4.5a.75.75 0 0 1 0 1.5H5.56l3.97 3.97a.75.75 0 0 1-1.06 1.06L4.5 5.56v2.69a.75.75 0 0 1-1.5 0v-4.5Zm11.47 11.78a.75.75 0 1 1 1.06-1.06l3.97 3.97v-2.69a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1 0-1.5h2.69l-3.97-3.97Zm-4.94-1.06a.75.75 0 0 1 0 1.06L5.56 19.5h2.69a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 1 1.5 0v2.69l3.97-3.97a.75.75 0 0 1 1.06 0Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Open Portal
-              </button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="size-5"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M15 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V5.56l-3.97 3.97a.75.75 0 1 1-1.06-1.06l3.97-3.97h-2.69a.75.75 0 0 1-.75-.75Zm-12 0A.75.75 0 0 1 3.75 3h4.5a.75.75 0 0 1 0 1.5H5.56l3.97 3.97a.75.75 0 0 1-1.06 1.06L4.5 5.56v2.69a.75.75 0 0 1-1.5 0v-4.5Zm11.47 11.78a.75.75 0 1 1 1.06-1.06l3.97 3.97v-2.69a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1 0-1.5h2.69l-3.97-3.97Zm-4.94-1.06a.75.75 0 0 1 0 1.06L5.56 19.5h2.69a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 1 1.5 0v2.69l3.97-3.97a.75.75 0 0 1 1.06 0Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Open Portal
+                </button>
+              </Link>
             </div>
           )}
         </div>
