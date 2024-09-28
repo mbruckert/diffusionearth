@@ -177,7 +177,8 @@ def generate_prompt_from_image(prompt):
         arguments={
             "inputs": [{
                 "prompt": "Describe what is visible in this image in detail. Pretend you are trying to prompt a diffusion model to generate this exact image.",
-                "image_url": prompt
+                "image_url": prompt,
+                "max_tokens": 256
             }]
         }
     )
