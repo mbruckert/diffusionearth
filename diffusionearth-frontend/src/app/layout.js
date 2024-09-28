@@ -15,6 +15,7 @@ const geistMono = localFont({
 export const metadata = {
   title: "Diffusion Earth",
   description: "Explore the world, created by AI",
+  favicon: "/favicon.png",
 };
 
 export default function RootLayout({ children }) {
