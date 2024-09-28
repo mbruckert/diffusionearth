@@ -68,17 +68,32 @@ export default function Home() {
   );
 
   const [fileName, setFileName] = useState("");
+  const [portalReady, setPortalReady] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [backgroundImage, setBackgroundImage] = useState('url("/street.png")');
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
       setFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadedImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleSimulate = () => {
+    if (uploadedImage) {
+      setBackgroundImage(`url(${uploadedImage})`);
+    }
+    setPortalReady(true);
   };
 
   return (
     <div className="flex flex-wrap h-screen">
-      <div className="w-full md:w-1/2 pr-8 md:pr-64 bg-gray-100 pt-20 px-8 border-r border-gray-300 h-full overflow-y-auto">
+      <div className="w-full md:w-1/2 pr-8 md:pr-64 bg-gray-100 pt-6 px-8 border-r border-gray-300 h-full overflow-y-auto">
         <img src="/logo.png" alt="logo" className="w-20 h-20" />
         <h1 className="text-3xl font-semibold mt-4">Diffusion Earth</h1>
         <p className="text-xl">The world, if it was created by AI.</p>
@@ -167,21 +182,62 @@ export default function Home() {
           placeholder="Describe where you want your world to start..."
         />
         <hr className="my-4 border-gray-300" />
-        <button className="bg-blue-500 text-white rounded-lg p-2 w-full font-bold hover:bg-blue-400">
+        <button
+          className="bg-blue-500 text-white rounded-lg p-2 w-full font-bold hover:bg-blue-400"
+          onClick={handleSimulate}
+        >
           Simulate Location
         </button>
+        {portalReady && (
+          <div className="flex gap-4 mt-6">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="size-6 text-green-500 "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+            <p className="text-green-500 font-bold">Portal is ready!</p>
+          </div>
+        )}
       </div>
       <div
         className="w-full md:w-1/2 h-full overflow-hidden pt-20 px-8 relative"
         style={{
-          backgroundImage: 'url("/street.png")',
+          backgroundImage: backgroundImage,
           backgroundSize: "cover",
           opacity: 0.8,
         }}
       >
         <div className="absolute inset-0 bg-black opacity-50" />
-        <div className="relative z-10 w-full h-full">
+        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
           <MorphingBlob />
+          {portalReady && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <button className="bg-white rounded-lg p-2 w-1/4 font-bold hover:bg-blue-100 text-blue-500 transition-colors duration-300 flex items-center justify-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="size-5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M15 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V5.56l-3.97 3.97a.75.75 0 1 1-1.06-1.06l3.97-3.97h-2.69a.75.75 0 0 1-.75-.75Zm-12 0A.75.75 0 0 1 3.75 3h4.5a.75.75 0 0 1 0 1.5H5.56l3.97 3.97a.75.75 0 0 1-1.06 1.06L4.5 5.56v2.69a.75.75 0 0 1-1.5 0v-4.5Zm11.47 11.78a.75.75 0 1 1 1.06-1.06l3.97 3.97v-2.69a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1 0-1.5h2.69l-3.97-3.97Zm-4.94-1.06a.75.75 0 0 1 0 1.06L5.56 19.5h2.69a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 1 1.5 0v2.69l3.97-3.97a.75.75 0 0 1 1.06 0Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Open Portal
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
