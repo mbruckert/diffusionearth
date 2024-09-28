@@ -219,7 +219,13 @@ def generate_final_view_from_image_mask_prompt(image_url, mask_url, prompt):
             "image_url": image_url,
             "mask_url": mask_url,
             "prompt": prompt,
-            "sync_mode": False
+            "sync_mode": False,
+            "negative_prompt": "cartoon, illustration, animation. face. male, distorted, low-quality, blurred, pixelated, abstract, white, transparent, random, glitchy.",
+            "image_size": "square_hd",
+            "num_inference_steps": 21,
+            "guidance_scale": 1,
+            "strength": 0.97,
+            "seed": 42
         }
     )
     result = handler.get()
