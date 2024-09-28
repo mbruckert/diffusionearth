@@ -5,9 +5,12 @@ import React, { useState, useEffect } from "react";
 export default function Home() {
   const [fileName, setFileName] = useState("");
   const [portalReady, setPortalReady] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [backgroundImage, setBackgroundImage] = useState('url("/street.png")');
   const [buttonOpacity, setButtonOpacity] = useState(0);
+  const [address, setAddress] = useState("");
+  const [prompt, setPrompt] = useState("");
 
   const morphs = [
     // First shape
@@ -95,10 +98,49 @@ export default function Home() {
   }, [portalReady]);
 
   const handleSimulate = () => {
-    if (uploadedImage) {
+    console.log("handleSimulate called");
+    if (uploadedImage !== null) {
+      console.log("uploadedImage is not null");
       setBackgroundImage(`url(${uploadedImage})`);
+      setPortalReady(true);
+    } else if (address !== "") {
+      console.log("address is not empty");
+      setPortalLoading(true);
+      fetch("https://diffusionearth.uc.r.appspot.com/street-view", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ address }),
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setBackgroundImage(`url(${data.url})`);
+          setPortalLoading(false);
+          setPortalReady(true);
+        });
+    } else {
+      console.log("prompt is not empty");
+      setPortalLoading(true);
+      fetch("https://diffusionearth.uc.r.appspot.com/prompt-to-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setBackgroundImage(`url(${data.image_url})`);
+          window.localStorage.setItem("depth", data.depth_map_url);
+          setPortalLoading(false);
+          setPortalReady(true);
+        });
     }
-    setPortalReady(true);
   };
 
   return (
@@ -125,6 +167,8 @@ export default function Home() {
         <input
           className="border border-gray-300 rounded-lg p-2 mt-2 w-full"
           placeholder="Enter any address here..."
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
         />
         <hr className="my-4 border-gray-300" />
         <div className="mt-4 flex items-center gap-3">
@@ -190,6 +234,8 @@ export default function Home() {
         <textarea
           className="border border-gray-300 rounded-lg p-2 mt-2 w-full"
           placeholder="Describe where you want your world to start..."
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
         />
         <hr className="my-4 border-gray-300" />
         <button
@@ -198,6 +244,30 @@ export default function Home() {
         >
           Simulate Location
         </button>
+        {portalLoading && (
+          <div className="flex gap-4 mt-6">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-6 text-gray-500"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z"
+              />
+            </svg>
+            <p className="text-gray-500 font-bold">Portal is warming up...</p>
+          </div>
+        )}
         {portalReady && (
           <div className="flex gap-4 mt-6">
             <svg
@@ -206,7 +276,7 @@ export default function Home() {
               viewBox="0 0 24 24"
               stroke-width="1.5"
               stroke="currentColor"
-              class="size-6 text-green-500 "
+              class="size-6 text-green-500"
             >
               <path
                 stroke-linecap="round"

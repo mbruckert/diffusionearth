@@ -9,8 +9,12 @@ const Spinner = () => (
 
 export default function Viewer() {
   const [isLoading, setIsLoading] = useState(true);
+  const [backgroundImage, setBackgroundImage] = useState("");
 
   useEffect(() => {
+    if (window.localStorage.getItem("depth")) {
+      setBackgroundImage(window.localStorage.getItem("depth"));
+    }
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2000);
@@ -30,7 +34,7 @@ export default function Viewer() {
     <div>
       <div
         style={{
-          backgroundImage: 'url("/street.png")',
+          backgroundImage: `url("${backgroundImage}")`,
           width: "100%",
           height: "100vh",
           backgroundSize: "cover",
