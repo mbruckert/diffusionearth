@@ -16,7 +16,7 @@ def upload_to_fal(file_path):
     url = fal_client.upload_file(file_path)
     return url
 
-def inpaint_image(original_file_path, mask_file_path, prompt, fal_key):
+def inpaint_image(original_file_path, mask_file_path, prompt):
     handler = fal_client.submit(
         "fal-ai/fast-sdxl/inpainting",
         arguments={
@@ -27,10 +27,27 @@ def inpaint_image(original_file_path, mask_file_path, prompt, fal_key):
     )
 
     result = handler.get()
-    return result
+    if 'images' in result and len(result['images']) > 0:
+        return result['images'][0]['url']
+    return None
+
+def marigold_depth_estimation(img_url):
+    handler = fal_client.submit(
+        "fal-ai/imageutils/marigold-depth",
+        arguments={
+            "image_url": img_url
+        },
+    )
+    result = handler.get()
+    print(result)
+    if 'image' in result:
+        return result['image']['url']
+    return None
 
 if __name__ == "__main__":
-    original = upload_to_fal(ORIGINAL_FILE_PATH)
-    mask = upload_to_fal(MASK_FILE_PATH)
-    result = inpaint_image(original, mask, PROMPT, FAL_KEY)
+    # original = upload_to_fal(ORIGINAL_FILE_PATH)
+    # mask = upload_to_fal(MASK_FILE_PATH)
+    # result = inpaint_image(original, mask, PROMPT)
+    dog = upload_to_fal(ORIGINAL_FILE_PATH)
+    result = marigold_depth_estimation(dog)
     print(result)
