@@ -64,7 +64,7 @@ def image_to_image():
     doc_ref = add_to_firestore(gcp_image_url, depth_map_url)
     print(doc_ref)
 
-    return jsonify({'depth_map_url': depth_map_url})
+    return jsonify({'image_url':gcp_image_url, 'depth_map_url': depth_map_url})
 
 
 @app.route('/image-to-prompt', methods=['POST'])
@@ -81,10 +81,10 @@ def image_to_prompt():
     print(gcp_image_url)
 
     prompt = generate_prompt_from_image(gcp_image_url)
-    return jsonify({'prompt': prompt})
+    return jsonify({'prompt': prompt, 'image_url': gcp_image_url})
 
 
-"""@app.route('/prompt-to-image', methods=['POST'])
+@app.route('/prompt-to-image', methods=['POST'])
 @cross_origin()
 def prompt_to_image():
     data = request.get_json()
@@ -92,18 +92,18 @@ def prompt_to_image():
         return jsonify({'error': 'No prompt provided in the request'}), 400
     
     prompt = data['prompt']
-    
+    print("I got the prompt", prompt)
     # Generate image from prompt
     image_url = generate_image_from_prompt(prompt)
     
-    # Save to Firestore
-    doc_ref = db.collection('images').add({
-        'depth': '',  # Assuming depth URL is not available for prompt-to-image
-        'original': image_url,
-        'point_cloud': ''  # Assuming point_cloud URL is not available yet
-    })
+    # Generate depth map
+    depth_map_url = marigold_depth_estimation(image_url)
     
-    return jsonify({'image_url': image_url})
+    # Save to Firestore
+    doc_ref = add_to_firestore(image_url, depth_map_url)
+    print(doc_ref)
+    
+    return jsonify({'image_url': image_url, 'depth_map_url': depth_map_url, 'user_prompt': prompt})
 
 @app.route('/address-to-image', methods=['POST'])
 @cross_origin()
@@ -115,7 +115,7 @@ def address_to_image():
     address = data['address']
     
     # For now, just return the address string
-    return jsonify({'address': address})"""
+    return jsonify({'address': address})
 
 
 def marigold_depth_estimation(image_url):
@@ -133,13 +133,16 @@ def marigold_depth_estimation(image_url):
 
 def generate_image_from_prompt(prompt):
     handler = fal_client.submit(
-        "fal-ai/fast-sdxl/text-to-image",
+        "fal-ai/fast-turbo-diffusion",
         arguments={
-            "prompt": prompt
-        }
+            "prompt": prompt,
+            "sync_mode": False
+        },
     )
+
     result = handler.get()
-    if 'images' in result and len(result['images']) > 0:
+    print(result)
+    if 'images' in result:
         return result['images'][0]['url']
     return None
 
