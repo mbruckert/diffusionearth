@@ -117,6 +117,30 @@ def address_to_image():
     # For now, just return the address string
     return jsonify({'address': address})
 
+# This route takes two images 'render' and 'mask' as an upload and a prompt and returns the final view
+@app.route('/image-and-mask-to-image', methods=['POST'])
+@cross_origin()
+def image_and_mask_to_image():
+    if 'render' not in request.files:
+        return jsonify({'error': 'No render image part in the request'}), 400
+    if 'mask' not in request.files:
+        return jsonify({'error': 'No mask image part in the request'}), 400
+
+    render = request.files['render']
+    mask = request.files['mask']
+    if render.filename == '':
+        return jsonify({'error': 'No render image selected for uploading'}), 400
+    if mask.filename == '':
+        return jsonify({'error': 'No mask image selected for uploading'}), 400
+
+    # Upload images to gcs server
+    gcp_render_url = upload_to_gcs(render)
+    gcp_mask_url = upload_to_gcs(mask)
+    print(gcp_render_url, gcp_mask_url)
+
+    prompt = generate_prompt_from_image(gcp_render_url)
+    final_view = generate_final_view_from_image_mask_prompt(gcp_render_url, gcp_mask_url, prompt)
+    return jsonify({'final_view': final_view, 'prompt': prompt, 'render_url': gcp_render_url, 'mask_url': gcp_mask_url})
 
 def marigold_depth_estimation(image_url):
     handler = fal_client.submit(
@@ -160,6 +184,22 @@ def generate_prompt_from_image(prompt):
     result = handler.get()
     if 'outputs' in result:
         return result['outputs'][0]
+    return None
+
+def generate_final_view_from_image_mask_prompt(image_url, mask_url, prompt):
+    handler = fal_client.submit(
+        "fal-ai/fast-turbo-diffusion/inpainting",
+        arguments={
+            "image_url": image_url,
+            "mask_url": mask_url,
+            "prompt": prompt,
+            "sync_mode": False
+        }
+    )
+    result = handler.get()
+    print(result)
+    if 'images' in result and len(result['images']) > 0:
+        return result['images'][0]['url']
     return None
 
 
