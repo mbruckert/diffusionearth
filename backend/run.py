@@ -73,8 +73,6 @@ def start():
     # Rest of your code remains the same
     color_image = download_image(image_url, cv2.IMREAD_COLOR)
     depth_map = download_image(depth_url, cv2.IMREAD_ANYDEPTH)
-    color_image = cv2.resize(color_image, (512, 512))
-    depth_map = cv2.resize(depth_map, (512, 512))
 
     cv2.imwrite("color_image.png", color_image)
     cv2.imwrite("depth_map.png", depth_map)
@@ -86,15 +84,15 @@ def start():
 
     user.renders[(0, 0)] = GridNode(
         N=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                   height, width, prompt, 0, 0, "0,0 N"),
+                   height, width, 0, 0, "0,0 N"),
         NE=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                    height, width, prompt, 0, -45, "0,0 NE"),
+                    height, width, 0, -45, "0,0 NE"),
         NW=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                    height, width, prompt, 0, 45, "0,0 NW"),
+                    height, width, 0, 45, "0,0 NW"),
     )
     user.renders[(0, 1)] = GridNode(
         N=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                   height, width, prompt, 5, 0, "0,1 N"),
+                   height, width, 5, 0, "0,1 N"),
     )
 
     return jsonify({'status': 'success', 'image_url': image_url, 'depth_map_url': depth_url})
@@ -133,8 +131,7 @@ def move():
 
         # rotate the user's view
         orientation_num = INV_VIEW_MAP[user.orientation]
-        new_orientation = VIEW_MAP[(
-            orientation_num - 1) % 8] if action == 'a' else VIEW_MAP[(orientation_num + 1) % 8]
+        new_orientation = VIEW_MAP[(orientation_num - 1) % 8] if action == 'a' else VIEW_MAP[(orientation_num + 1) % 8]
 
         # get the new view
         node = user.renders.get(tuple(user.position))
@@ -312,7 +309,7 @@ def generate_image_from_prompt(prompt):
     handler = fal_client.submit(
         "fal-ai/fast-turbo-diffusion",
         arguments={
-            "prompt": f"{prompt}, photorealistic",
+            "prompt": prompt,
             "sync_mode": False
         },
     )

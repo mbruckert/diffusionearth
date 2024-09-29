@@ -46,7 +46,7 @@ RENDERED = 1
 PROPAGATED = 2
 
 class GridView:
-    def __init__(self, points, colors, intrinsics, height, width, prompt, tf, rh, grid_id):
+    def __init__(self, points, colors, intrinsics, height, width, tf, rh, grid_id):
         self.points = points
         self.colors = colors
         self.intrinsics = intrinsics
@@ -61,7 +61,7 @@ class GridView:
         self.depth_image_url = manager.Value('depth_image_url', None)
         self.propagation_data = manager.list()
         self.status = manager.Value('status', NEW)
-        multiprocessing.Process(target=self.render, args=(tf, rh, grid_id, prompt)).start()
+        multiprocessing.Process(target=self.render, args=(tf, rh, grid_id)).start()
 
         # if image and depth url are empty, post a queue message to generate the render
         # the render function must propagate the points and colors and stuff to the new grids
@@ -70,7 +70,7 @@ class GridView:
         # can make the render and update the image and depth image url. It will also have created the new points, colors, etc.
         # and since it is coming at this from the top down it can update the grid and start the next batch
 
-    def render(self, tf, rh, grid_id, prompt):
+    def render(self, tf, rh, grid_id):
         """called when a gridview is created without an image and depth url. This function will render the image and depth
         for this view, and store the new points, colors, etc. until the user lands on this view. Then, they can be propagated
         to the next view"""
@@ -84,7 +84,7 @@ class GridView:
         alignment_pcd.colors = o3d.utility.Vector3dVector(np.array([[0, 0, 0]] * self.points.shape[0]))
 
         # Step 2. Get the camera orientation from the alignment point cloud
-        lookat, zoom, transform_factor, pose, forward = get_camera_orientation(alignment_pcd)
+        lookat, zoom, transform_factor, pose = get_camera_orientation(alignment_pcd)
         print(f"{grid_id} Lookat: {lookat}, Zoom: {zoom}, Transform Factor: {transform_factor}")
 
         # Step 3. Update the global point cloud
@@ -114,20 +114,19 @@ class GridView:
         current_mask_pcd.colors = o3d.utility.Vector3dVector(np.array([[0, 0, 0]] * self.points.shape[0]))
 
         # Step 6. Render the point cloud and mask
-        pcd_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_pcd, forward)
-        mask_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_mask_pcd, forward)
+        pcd_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_pcd)
+        mask_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_mask_pcd)
 
-        # cv2.imwrite(f'{grid_id}_mask.png', mask_render)
-        # cv2.imwrite(f'{grid_id}_image.png', pcd_render)
+        cv2.imwrite(f'{grid_id}_mask.png', mask_render)
+        cv2.imwrite(f'{grid_id}_image.png', pcd_render)
 
         image, mask = process_renders(pcd_render, mask_render)
 
         # Step 7. Get the next image and depth
-        new_image, self.image_url.value, new_depth, self.depth_image_url.value = get_next_images(image, mask, prompt)
+        new_image, self.image_url.value, new_depth, self.depth_image_url.value = get_next_images(image, mask)
         
         # Step 8. Update the current points, colors, and intrinsics
         self.propagation_data.extend(preprocess(new_depth, new_image))
-        self.propagation_data.append(prompt)
 
         self.status.value = RENDERED
         print(f"Rendered {grid_id}!")
@@ -232,28 +231,6 @@ def get_camera_orientation(mask_pcd) -> tuple:
     shift_factor = 2 * view_ratio / 1080
     transform_factor = 1 / (degrees_per_unit * shift_factor)
 
-    # Compute the forward vector so the camera's view is parallel to the floor
-    # hooray for chatgpt
-    plane_model, inliers = _pcd.segment_plane(distance_threshold=0.01,
-                                            ransac_n=3,
-                                            num_iterations=1000)
-    plane_normal = np.array(plane_model[:3])
-    plane_normal /= np.linalg.norm(plane_normal)
-    initial_forward = np.array([0, 0, -1])
-    dot_product = np.dot(initial_forward, plane_normal)
-    new_forward = initial_forward - dot_product * plane_normal
-    norm = np.linalg.norm(new_forward)
-    if norm < 1e-6:
-        # If the projection is near zero, choose an arbitrary orthogonal vector
-        if abs(plane_normal[0]) < abs(plane_normal[1]):
-            new_forward = np.cross(plane_normal, [1, 0, 0])
-        else:
-            new_forward = np.cross(plane_normal, [0, 1, 0])
-        new_forward /= np.linalg.norm(new_forward)
-    else:
-        new_forward /= norm
-
-
     # Compute pose (extrinsics) matrix
     pos = np.array([lookat[0], lookat[1], lookat[2]+distance])
     forward = np.array([0, 0, -1])
@@ -271,9 +248,9 @@ def get_camera_orientation(mask_pcd) -> tuple:
     pose_matrix = np.linalg.inv(view_matrix)
     pose_matrix[:, 1:3] = -pose_matrix[:, 1:3]
     
-    return lookat, zoom, transform_factor, pose_matrix, forward
+    return lookat, zoom, transform_factor, pose_matrix
 
-def render_pcd(lookat, zoom, height, width, rotate, translate, pcd, forward=np.array([0, 0, -1])):
+def render_pcd(lookat, zoom, height, width, rotate, translate, pcd):
     """Render a 2D image of the point cloud with a certain camera orientation. The rotate and translate arguments must already
     be converted to the Open3D format, and should NOT be an angle or xyz translateion respectively"""
 
@@ -287,7 +264,7 @@ def render_pcd(lookat, zoom, height, width, rotate, translate, pcd, forward=np.a
 
     # get to the start position
     ctr.set_up([0, -1, 0])
-    ctr.set_front(forward)#([0, 0, -1])
+    ctr.set_front([0, 0, -1])
     ctr.set_lookat(lookat)
     ctr.set_zoom(zoom)
 
@@ -347,7 +324,7 @@ def process_renders(image_render, mask_render):
 
     return image_render, binary_mask
 
-def get_next_images(image, mask, image_description):
+def get_next_images(image, mask):
     """Use the current image and inpainting mask to get a new image for the point cloud, and its depth"""
 
     # upload the renders to google cloud storage
@@ -376,18 +353,18 @@ def get_next_images(image, mask, image_description):
     print(f"Image URL: {image_url}")
     print(f"Mask URL: {mask_url}")
 
-    # # get a description of the rgb image
-    # handler = fal_client.submit(
-    #     "fal-ai/moondream/batched",
-    #     arguments={
-    #         "inputs": [{
-    #             "prompt": "Describe what is visible in this image in detail. Pretend you are trying to prompt a diffusion model to generate this exact image.",
-    #             "image_url": image_url,
-    #             "max_tokens": 256
-    #         }]
-    #     }
-    # )
-    # image_description = handler.get()['outputs'][0]
+    # get a description of the rgb image
+    handler = fal_client.submit(
+        "fal-ai/moondream/batched",
+        arguments={
+            "inputs": [{
+                "prompt": "Describe what is visible in this image in detail. Pretend you are trying to prompt a diffusion model to generate this exact image.",
+                "image_url": image_url,
+                "max_tokens": 256
+            }]
+        }
+    )
+    image_description = handler.get()['outputs'][0]
     
     # perform inpainting on the image using the mask and description
     handler = fal_client.submit(
@@ -395,7 +372,7 @@ def get_next_images(image, mask, image_description):
         arguments={
             "image_url": image_url,
             "mask_url": mask_url,
-            "prompt": f"{image_description}, photorealistic",
+            "prompt": image_description,
             "sync_mode": False,
             "negative_prompt": "cartoon, illustration, animation. face. male, distorted, low-quality, blurred, pixelated, abstract, white, transparent, random, glitchy.",
             "image_size": "square_hd",
