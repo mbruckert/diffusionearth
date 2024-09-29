@@ -312,16 +312,27 @@ def generate_image_from_prompt(prompt):
     handler = fal_client.submit(
         "fal-ai/fast-turbo-diffusion",
         arguments={
-            "prompt": prompt,
+            "prompt": f"{prompt}, photorealistic",
             "sync_mode": False
         },
     )
+    new_image_url = handler.get()['images'][0]['url']
 
-    result = handler.get()
-    print(result)
-    if 'images' in result:
-        return result['images'][0]['url']
-    return None
+    # handler = fal_client.submit(
+    #     "fal-ai/creative-upscaler",
+    #     arguments={
+    #         "image_url": render_url,
+    #         "scale": 1,
+    #         "creativity": 0.1,
+    #         "detail": 2,
+    #         "shape_preservation": 2.5,
+    #         "seed": 42,
+    #         "skip_ccsr": True,
+    #     },
+    # )
+    # new_image_url = handler.get()['image']['url']
+
+    return new_image_url
 
 
 def generate_prompt_from_image(prompt):
@@ -378,8 +389,7 @@ def get_street_view_image(address) -> str:
     output_dir = os.path.join(temp_dir, "temp_images")
     os.makedirs(output_dir, exist_ok=True)
 
-    url = f"https://maps.googleapis.com/maps/api/streetview?size=600x400&location={
-        lat},{lng}&fov=90&heading=0&key={GOOGLE_MAPS_KEY}"
+    url = f"https://maps.googleapis.com/maps/api/streetview?size=600x400&location={lat},{lng}&fov=90&heading=0&key={GOOGLE_MAPS_KEY}"
     response = requests.get(url)
 
     address_hash = str(hash(address))

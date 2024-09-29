@@ -84,7 +84,7 @@ class GridView:
         alignment_pcd.colors = o3d.utility.Vector3dVector(np.array([[0, 0, 0]] * self.points.shape[0]))
 
         # Step 2. Get the camera orientation from the alignment point cloud
-        lookat, zoom, transform_factor, pose = get_camera_orientation(alignment_pcd)
+        lookat, zoom, transform_factor, pose, forward = get_camera_orientation(alignment_pcd)
         print(f"{grid_id} Lookat: {lookat}, Zoom: {zoom}, Transform Factor: {transform_factor}")
 
         # Step 3. Update the global point cloud
@@ -114,8 +114,8 @@ class GridView:
         current_mask_pcd.colors = o3d.utility.Vector3dVector(np.array([[0, 0, 0]] * self.points.shape[0]))
 
         # Step 6. Render the point cloud and mask
-        pcd_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_pcd)
-        mask_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_mask_pcd)
+        pcd_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_pcd, forward)
+        mask_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_mask_pcd, forward)
 
         # cv2.imwrite(f'{grid_id}_mask.png', mask_render)
         # cv2.imwrite(f'{grid_id}_image.png', pcd_render)
@@ -232,6 +232,28 @@ def get_camera_orientation(mask_pcd) -> tuple:
     shift_factor = 2 * view_ratio / 1080
     transform_factor = 1 / (degrees_per_unit * shift_factor)
 
+    # Compute the forward vector so the camera's view is parallel to the floor
+    # hooray for chatgpt
+    plane_model, inliers = _pcd.segment_plane(distance_threshold=0.01,
+                                            ransac_n=3,
+                                            num_iterations=1000)
+    plane_normal = np.array(plane_model[:3])
+    plane_normal /= np.linalg.norm(plane_normal)
+    initial_forward = np.array([0, 0, -1])
+    dot_product = np.dot(initial_forward, plane_normal)
+    new_forward = initial_forward - dot_product * plane_normal
+    norm = np.linalg.norm(new_forward)
+    if norm < 1e-6:
+        # If the projection is near zero, choose an arbitrary orthogonal vector
+        if abs(plane_normal[0]) < abs(plane_normal[1]):
+            new_forward = np.cross(plane_normal, [1, 0, 0])
+        else:
+            new_forward = np.cross(plane_normal, [0, 1, 0])
+        new_forward /= np.linalg.norm(new_forward)
+    else:
+        new_forward /= norm
+
+
     # Compute pose (extrinsics) matrix
     pos = np.array([lookat[0], lookat[1], lookat[2]+distance])
     forward = np.array([0, 0, -1])
@@ -249,9 +271,9 @@ def get_camera_orientation(mask_pcd) -> tuple:
     pose_matrix = np.linalg.inv(view_matrix)
     pose_matrix[:, 1:3] = -pose_matrix[:, 1:3]
     
-    return lookat, zoom, transform_factor, pose_matrix
+    return lookat, zoom, transform_factor, pose_matrix, forward
 
-def render_pcd(lookat, zoom, height, width, rotate, translate, pcd):
+def render_pcd(lookat, zoom, height, width, rotate, translate, pcd, forward=np.array([0, 0, -1])):
     """Render a 2D image of the point cloud with a certain camera orientation. The rotate and translate arguments must already
     be converted to the Open3D format, and should NOT be an angle or xyz translateion respectively"""
 
@@ -265,7 +287,7 @@ def render_pcd(lookat, zoom, height, width, rotate, translate, pcd):
 
     # get to the start position
     ctr.set_up([0, -1, 0])
-    ctr.set_front([0, 0, -1])
+    ctr.set_front(forward)#([0, 0, -1])
     ctr.set_lookat(lookat)
     ctr.set_zoom(zoom)
 
@@ -373,7 +395,7 @@ def get_next_images(image, mask, image_description):
         arguments={
             "image_url": image_url,
             "mask_url": mask_url,
-            "prompt": image_description,
+            "prompt": f"{image_description}, photorealistic",
             "sync_mode": False,
             "negative_prompt": "cartoon, illustration, animation. face. male, distorted, low-quality, blurred, pixelated, abstract, white, transparent, random, glitchy.",
             "image_size": "square_hd",
@@ -385,19 +407,19 @@ def get_next_images(image, mask, image_description):
     )
     new_image_url = handler.get()['images'][0]['url']
 
-    # # # perform upscaling on the depth image
-    # # handler = fal_client.submit(
-    # #     "fal-ai/creative-upscaler",
-    # #     arguments={
-    # #         "image_url": blurry_image_url,
-    # #         "scale": 2,
-    # #         "creativity": 0.3,
-    # #         "detail": 1,
-    # #         "shape_preservation": 2,
-    # #         "seed": 42,
-    # #         "skip_ccsr": True,
-    # #     },
-    # # )
+    # # perform upscaling on the depth image
+    # handler = fal_client.submit(
+    #     "fal-ai/creative-upscaler",
+    #     arguments={
+    #         "image_url": render_url,
+    #         "scale": 1,
+    #         "creativity": 0.1,
+    #         "detail": 2,
+    #         "shape_preservation": 2.5,
+    #         "seed": 42,
+    #         "skip_ccsr": True,
+    #     },
+    # )
     # new_image_url = handler.get()['image']['url']
 
     print(f"New image URL ready!: {new_image_url}")
