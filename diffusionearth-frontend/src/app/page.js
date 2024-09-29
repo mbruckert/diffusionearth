@@ -100,14 +100,12 @@ export default function Home() {
   const handleSimulate = () => {
     console.log("handleSimulate called");
     if (uploadedImage !== null) {
+      const formData = new FormData();
+      formData.append("image", uploadedImage);
+      formData.append("upload_type", "upload_image");
       fetch("http://127.0.0.1:5000/start", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          upload_type: "upload_image",
-        }),
+        body: formData,
       })
         .then((response) => {
           return response.json();
