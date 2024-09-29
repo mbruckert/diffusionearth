@@ -106,7 +106,7 @@ export default function Home() {
     } else if (address !== "") {
       console.log("address is not empty");
       setPortalLoading(true);
-      fetch("https://diffusionearth.uc.r.appspot.com/street-view", {
+      fetch("http://127.0.0.1:5000/street-view", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -124,7 +124,7 @@ export default function Home() {
     } else {
       console.log("prompt is not empty");
       setPortalLoading(true);
-      fetch("https://diffusionearth.uc.r.appspot.com/prompt-to-image", {
+      fetch("http://127.0.0.1:5000/prompt-to-image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
