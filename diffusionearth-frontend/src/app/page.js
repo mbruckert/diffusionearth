@@ -100,36 +100,14 @@ export default function Home() {
   const handleSimulate = () => {
     console.log("handleSimulate called");
     if (uploadedImage !== null) {
-      console.log("uploadedImage is not null");
-      setBackgroundImage(`url(${uploadedImage})`);
-      setPortalReady(true);
-    } else if (address !== "") {
-      console.log("address is not empty");
-      setPortalLoading(true);
-      fetch("https://diffusionearth.uc.r.appspot.com/street-view", {
+      fetch("http://127.0.0.1:5000/start", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ address }),
-      })
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setBackgroundImage(`url(${data.url})`);
-          setPortalLoading(false);
-          setPortalReady(true);
-        });
-    } else {
-      console.log("prompt is not empty");
-      setPortalLoading(true);
-      fetch("https://diffusionearth.uc.r.appspot.com/prompt-to-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({
+          upload_type: "upload_image",
+        }),
       })
         .then((response) => {
           return response.json();
@@ -138,16 +116,50 @@ export default function Home() {
           setBackgroundImage(`url(${data.image_url})`);
           window.localStorage.setItem("depth", data.depth_map_url);
           window.localStorage.setItem("color", data.image_url);
-          fetch("http://127.0.0.1:5000/start", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              color_image: data.image_url,
-              depth_image: data.depth_map_url,
-            }),
-          });
+          setPortalLoading(false);
+          setPortalReady(true);
+        });
+    } else if (address !== "") {
+      setPortalLoading(true);
+      fetch("http://127.0.0.1:5000/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          upload_type: "street_maps",
+          address: address,
+        }),
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setBackgroundImage(`url(${data.image_url})`);
+          window.localStorage.setItem("depth", data.depth_map_url);
+          window.localStorage.setItem("color", data.image_url);
+          setPortalLoading(false);
+          setPortalReady(true);
+        });
+    } else {
+      setPortalLoading(true);
+      const formData = new FormData();
+      formData.append("image", uploadedImage);
+      formData.append("upload_type", "upload_image");
+      fetch("http://127.0.0.1:5000/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: formData,
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setBackgroundImage(`url(${data.image_url})`);
+          window.localStorage.setItem("depth", data.depth_map_url);
+          window.localStorage.setItem("color", data.image_url);
           setPortalLoading(false);
           setPortalReady(true);
         });
