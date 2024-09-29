@@ -1,0 +1,9 @@
+Flask==3.0.3
+Flask-Cors==4.0.1
+fal_client==0.4.1
+google-cloud-core==2.3.3
+google-cloud-firestore==2.13.1
+google-cloud-storage==2.14.0
+firebase-admin==6.3.0
+googlemaps==4.10.0
+open3d
