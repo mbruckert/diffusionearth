@@ -59,7 +59,7 @@ export default function Viewer() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ direction: "a" }),
+      body: JSON.stringify({ action: "a" }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -74,7 +74,7 @@ export default function Viewer() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ direction: "w" }),
+      body: JSON.stringify({ action: "w" }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -89,7 +89,7 @@ export default function Viewer() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ direction: "d" }),
+      body: JSON.stringify({ action: "d" }),
     })
       .then((res) => res.json())
       .then((data) => {
