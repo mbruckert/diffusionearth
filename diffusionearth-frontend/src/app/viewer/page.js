@@ -12,14 +12,37 @@ export default function Viewer() {
   const [backgroundImage, setBackgroundImage] = useState("");
 
   useEffect(() => {
-    if (window.localStorage.getItem("depth")) {
-      setBackgroundImage(window.localStorage.getItem("depth"));
+    if (window.localStorage.getItem("color")) {
+      setBackgroundImage(window.localStorage.getItem("color"));
     }
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2000);
 
-    return () => clearTimeout(timer);
+    // Add event listeners
+    const handleKeyDown = (event) => {
+      if (event.repeat) return; // Prevent repeated actions while holding the key
+
+      switch (event.key) {
+        case "w":
+          moveForward();
+          break;
+        case "a":
+          rotateLeft();
+          break;
+        case "d":
+          rotateRight();
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   if (isLoading) {
@@ -28,6 +51,51 @@ export default function Viewer() {
         <Spinner />
       </div>
     );
+  }
+
+  function rotateLeft() {
+    fetch("http://127.0.0.1:5000/move", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ direction: "a" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setBackgroundImage(data.new_image);
+        window.localStorage.setItem("depth", data.depth_image);
+      });
+  }
+
+  function moveForward() {
+    fetch("http://127.0.0.1:5000/move", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ direction: "w" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setBackgroundImage(data.new_image);
+        window.localStorage.setItem("depth", data.depth_image);
+      });
+  }
+
+  function rotateRight() {
+    fetch("http://127.0.0.1:5000/move", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ direction: "d" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setBackgroundImage(data.new_image);
+        window.localStorage.setItem("depth", data.depth_image);
+      });
   }
 
   return (
@@ -63,6 +131,7 @@ export default function Viewer() {
           <button
             className="rounded-full p-5 bg-blue-500 hover:bg-blue-600 active:shadow-none transition-shadow duration-150"
             style={{ boxShadow: "0px 4px 0px 0px rgba(120, 189, 251, 1)" }}
+            onClick={rotateLeft}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -82,6 +151,7 @@ export default function Viewer() {
           <button
             className="rounded-full p-5 bg-blue-500 hover:bg-blue-600 active:shadow-none transition-shadow duration-150"
             style={{ boxShadow: "0px 4px 0px 0px rgba(120, 189, 251, 1)" }}
+            onClick={rotateRight}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -103,6 +173,7 @@ export default function Viewer() {
           <button
             className="rounded-full pl-5 pr-5 pt-4 pb-4 bg-blue-500 hover:bg-blue-600 active:shadow-none transition-shadow duration-150"
             style={{ boxShadow: "0px 6px 0px 0px rgba(120, 189, 251, 1)" }}
+            onClick={moveForward}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
