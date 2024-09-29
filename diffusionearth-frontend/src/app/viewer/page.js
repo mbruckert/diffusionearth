@@ -92,6 +92,25 @@ export default function Viewer() {
       });
   }
 
+  function moveBackward() {
+    fetch("http://127.0.0.1:5000/move", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "s" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.info) {
+          toast("This hasn't been rendered yet. Wait a few seconds.");
+        } else {
+          setBackgroundImage(data.image_url);
+          window.localStorage.setItem("depth", data.depth_map_url);
+        }
+      });
+  }
+
   function rotateRight() {
     fetch("http://127.0.0.1:5000/move", {
       method: "POST",
@@ -183,7 +202,27 @@ export default function Viewer() {
             </svg>
           </button>
         </div>
-        <div className="flex justify-center items-center px-8 mt-64">
+        <div className="flex gap-4 justify-center items-center px-8 mt-64">
+          <button
+            className="rounded-full pl-5 pr-5 pt-4 pb-4 bg-blue-500 hover:bg-blue-600 active:shadow-none transition-shadow duration-150"
+            style={{ boxShadow: "0px 6px 0px 0px rgba(120, 189, 251, 1)" }}
+            onClick={moveBackward}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-6 text-white font-bold"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 17.25 12 21m0 0-3.75-3.75M12 21V3"
+              />
+            </svg>
+          </button>
           <button
             className="rounded-full pl-5 pr-5 pt-4 pb-4 bg-blue-500 hover:bg-blue-600 active:shadow-none transition-shadow duration-150"
             style={{ boxShadow: "0px 6px 0px 0px rgba(120, 189, 251, 1)" }}
