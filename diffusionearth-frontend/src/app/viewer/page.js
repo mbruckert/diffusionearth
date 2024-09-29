@@ -63,8 +63,8 @@ export default function Viewer() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setBackgroundImage(data.new_image);
-        window.localStorage.setItem("depth", data.depth_image);
+        setBackgroundImage(data.image_url);
+        window.localStorage.setItem("depth", data.depth_map_url);
       });
   }
 
@@ -78,8 +78,8 @@ export default function Viewer() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setBackgroundImage(data.new_image);
-        window.localStorage.setItem("depth", data.depth_image);
+        setBackgroundImage(data.image_url);
+        window.localStorage.setItem("depth", data.depth_map_url);
       });
   }
 
@@ -93,8 +93,8 @@ export default function Viewer() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setBackgroundImage(data.new_image);
-        window.localStorage.setItem("depth", data.depth_image);
+        setBackgroundImage(data.image_url);
+        window.localStorage.setItem("depth", data.depth_map_url);
       });
   }
 
@@ -107,6 +107,7 @@ export default function Viewer() {
           height: "100vh",
           backgroundSize: "cover",
           backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
         }}
       >
         <Link href="/">
