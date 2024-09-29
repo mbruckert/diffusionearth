@@ -82,9 +82,7 @@ export default function Home() {
     if (file) {
       setFileName(file.name);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadedImage(e.target.result);
-      };
+      setUploadedImage(file);
       reader.readAsDataURL(file);
     }
   };
