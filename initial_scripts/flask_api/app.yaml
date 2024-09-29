@@ -1,0 +1,10 @@
+runtime: python39  # Use the appropriate Python version
+env: standard
+
+handlers:
+  - url: /.*
+    script: auto
+
+readiness_check:
+  path: "/readines_check"
+  app_start_timeout_sec: 1800
