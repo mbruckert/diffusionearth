@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import toast, { Toaster } from "react-hot-toast";
 
 const Spinner = () => (
   <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
@@ -64,7 +65,7 @@ export default function Viewer() {
       .then((res) => res.json())
       .then((data) => {
         if (data.info) {
-          alert("This hasn't been rendered yet. Wait a few seconds.");
+          toast("This hasn't been rendered yet. Wait a few seconds.");
         } else {
           setBackgroundImage(data.image_url);
           window.localStorage.setItem("depth", data.depth_map_url);
@@ -83,7 +84,7 @@ export default function Viewer() {
       .then((res) => res.json())
       .then((data) => {
         if (data.info) {
-          alert("This hasn't been rendered yet. Wait a few seconds.");
+          toast("This hasn't been rendered yet. Wait a few seconds.");
         } else {
           setBackgroundImage(data.image_url);
           window.localStorage.setItem("depth", data.depth_map_url);
@@ -102,7 +103,7 @@ export default function Viewer() {
       .then((res) => res.json())
       .then((data) => {
         if (data.info) {
-          alert("This hasn't been rendered yet. Wait a few seconds.");
+          toast("This hasn't been rendered yet. Wait a few seconds.");
         } else {
           setBackgroundImage(data.image_url);
           window.localStorage.setItem("depth", data.depth_map_url);
@@ -205,6 +206,7 @@ export default function Viewer() {
           </button>
         </div>
       </div>
+      <Toaster />
     </div>
   );
 }
