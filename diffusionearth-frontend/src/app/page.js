@@ -143,15 +143,15 @@ export default function Home() {
         });
     } else {
       setPortalLoading(true);
-      const formData = new FormData();
-      formData.append("image", uploadedImage);
-      formData.append("upload_type", "upload_image");
       fetch("http://127.0.0.1:5000/start", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify({
+          upload_type: "prompt",
+          prompt: prompt,
+        }),
       })
         .then((response) => {
           return response.json();
