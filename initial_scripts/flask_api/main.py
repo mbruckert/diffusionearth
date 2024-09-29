@@ -10,6 +10,7 @@ import time
 from googlemaps import Client
 import tempfile
 import requests
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -249,8 +250,7 @@ def get_street_view_image(address):
     output_dir = os.path.join(temp_dir, "temp_images")
     os.makedirs(output_dir, exist_ok=True)
 
-    url = f"https://maps.googleapis.com/maps/api/streetview?size=600x400&location={
-        lat},{lng}&fov=90&heading=0&key={GOOGLE_MAPS_KEY}"
+    url = f"https://maps.googleapis.com/maps/api/streetview?size=600x400&location={lat},{lng}&fov=90&heading=0&key={GOOGLE_MAPS_KEY}"
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -268,3 +268,6 @@ def get_street_view_image(address):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
