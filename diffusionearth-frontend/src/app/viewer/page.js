@@ -63,8 +63,12 @@ export default function Viewer() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setBackgroundImage(data.image_url);
-        window.localStorage.setItem("depth", data.depth_map_url);
+        if (data.info) {
+          alert("This hasn't been rendered yet. Wait a few seconds.");
+        } else {
+          setBackgroundImage(data.image_url);
+          window.localStorage.setItem("depth", data.depth_map_url);
+        }
       });
   }
 
@@ -78,8 +82,12 @@ export default function Viewer() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setBackgroundImage(data.image_url);
-        window.localStorage.setItem("depth", data.depth_map_url);
+        if (data.info) {
+          alert("This hasn't been rendered yet. Wait a few seconds.");
+        } else {
+          setBackgroundImage(data.image_url);
+          window.localStorage.setItem("depth", data.depth_map_url);
+        }
       });
   }
 
@@ -93,8 +101,12 @@ export default function Viewer() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setBackgroundImage(data.image_url);
-        window.localStorage.setItem("depth", data.depth_map_url);
+        if (data.info) {
+          alert("This hasn't been rendered yet. Wait a few seconds.");
+        } else {
+          setBackgroundImage(data.image_url);
+          window.localStorage.setItem("depth", data.depth_map_url);
+        }
       });
   }
 
