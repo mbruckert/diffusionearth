@@ -147,7 +147,7 @@ export default function Home() {
     <div className="flex flex-wrap h-screen">
       <div className="w-full md:w-1/2 pr-8 md:pr-64 bg-gray-100 pt-6 px-8 border-r border-gray-300 h-full overflow-y-auto">
         <img src="/logo.png" alt="logo" className="w-20 h-20" />
-        <h1 className="text-3xl font-semibold mt-4">Diffusion Earth</h1>
+        <h1 className="text-3xl font-semibold mt-4">DiffusionEarth</h1>
         <p className="text-xl">The world, if it was created by AI.</p>
         <div className="mt-4 flex items-center gap-3">
           <svg
@@ -203,9 +203,7 @@ export default function Home() {
                 />
               </svg>
               <h2>
-                {fileName
-                  ? `File selected: ${fileName}`
-                  : "Upload an Image (Click or Drag Here)"}
+                {fileName ? `File selected: ${fileName}` : "Upload an Image"}
               </h2>
             </div>
           </label>
