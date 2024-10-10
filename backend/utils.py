@@ -12,7 +12,8 @@ from PIL import Image
 from io import BytesIO
 from google.cloud import storage, firestore
 import multiprocessing
-from multiprocessing import Manager
+from multiprocessing import Manager, shared_memory
+import copy
 
 db = firestore.Client.from_service_account_json('diffusionearth-creds.json')
 
@@ -44,9 +45,11 @@ VIEW_OFFSET_MAP = {
 NEW = 0
 RENDERED = 1
 PROPAGATED = 2
+VOXEL_SIZE = 0.05
 
 class GridView:
-    def __init__(self, points, colors, intrinsics, height, width, tf, rh, grid_id):
+
+    def __init__(self, points, colors, intrinsics, height, width, tf, rh, grid_id, global_pc_dict, global_lock):
         self.points = points
         self.colors = colors
         self.intrinsics = intrinsics
@@ -61,6 +64,8 @@ class GridView:
         self.depth_image_url = manager.Value('depth_image_url', None)
         self.propagation_data = manager.list()
         self.status = manager.Value('status', NEW)
+        self.global_pc = global_pc_dict
+        self.global_lock = global_lock
         multiprocessing.Process(target=self.render, args=(tf, rh, grid_id)).start()
 
         # if image and depth url are empty, post a queue message to generate the render
@@ -77,6 +82,15 @@ class GridView:
 
         print(f"Rendering {grid_id}...")
 
+        # construct the global point cloud
+        with self.global_lock:
+            global_points = self.global_pc['points']
+            global_colors = self.global_pc['colors']
+
+        global_pc = o3d.geometry.PointCloud()
+        global_pc.points = o3d.utility.Vector3dVector(global_points)
+        global_pc.colors = o3d.utility.Vector3dVector(global_colors)
+
         # Step 1. Get the mask cloud of the most recent image, in order to get the camera orientation from that frame.
         # We use the most recent camera position as the starting point for the motion
         alignment_pcd = o3d.geometry.PointCloud()
@@ -87,34 +101,17 @@ class GridView:
         lookat, zoom, transform_factor, pose = get_camera_orientation(alignment_pcd)
         print(f"{grid_id} Lookat: {lookat}, Zoom: {zoom}, Transform Factor: {transform_factor}")
 
-        # Step 3. Update the global point cloud
-        # frame_cur = RGBDImages(
-        #     torch.tensor(color_image, dtype=torch.float32).unsqueeze(0).unsqueeze(0),
-        #     torch.tensor(depth_map, dtype=torch.float32).unsqueeze(0).unsqueeze(0).unsqueeze(-1),
-        #     torch.tensor(intrinsics, dtype=torch.float32).unsqueeze(0).unsqueeze(0),
-        #     torch.tensor(pose, dtype=torch.float32).unsqueeze(0).unsqueeze(0),
-        # )
-        # pointclouds, _ = slam.step(pointclouds, frame_cur, frame_prev)
-        # frame_prev = frame_cur
-        # torch.cuda.empty_cache()
-
-        # Step 4. Transform the local camera motion
+        # Step 3. Transform the local camera motion
         rotate, translate = process_local_transform(tf, rh, transform_factor)
 
         print(f"{grid_id} Rotate: {rotate}, Translate: {translate}")
 
-        # Step 5. Get the current global point cloud
-        # current_pcd = pointclouds.open3d(index=-1)
-        current_pcd = o3d.geometry.PointCloud()
-        current_pcd.points = o3d.utility.Vector3dVector(self.points)
-        current_pcd.colors = o3d.utility.Vector3dVector(self.colors)
-        # o3d.io.write_point_cloud(f'{grid_id}.ply', current_pcd)
-
-        current_mask_pcd = o3d.geometry.PointCloud(current_pcd)
-        current_mask_pcd.colors = o3d.utility.Vector3dVector(np.array([[0, 0, 0]] * self.points.shape[0]))
+        # Step 4. Get the global mask point cloud
+        current_mask_pcd = o3d.geometry.PointCloud(global_pc)
+        current_mask_pcd.colors = o3d.utility.Vector3dVector(np.array([[0, 0, 0]] * global_points.shape[0]))
 
         # Step 6. Render the point cloud and mask
-        pcd_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_pcd)
+        pcd_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, global_pc)
         mask_render = render_pcd(lookat, zoom, self.height, self.width, rotate, translate, current_mask_pcd)
 
         cv2.imwrite(f'{grid_id}_mask.png', mask_render)
@@ -126,7 +123,71 @@ class GridView:
         new_image, self.image_url.value, new_depth, self.depth_image_url.value = get_next_images(image, mask)
         
         # Step 8. Update the current points, colors, and intrinsics
-        self.propagation_data.extend(preprocess(new_depth, new_image))
+        points, colors, intrinsics, height, width = preprocess(new_depth, new_image)
+
+        # align points and colors with global_pc
+        source = o3d.geometry.PointCloud()
+        source.points = o3d.utility.Vector3dVector(points)
+        source.colors = o3d.utility.Vector3dVector(colors)
+
+        target_down, target_fpfh = prepare_registration(global_pc)
+        source_down, source_fpfh = prepare_registration(source)
+
+        #   - First, we do rough registration
+        distance_threshold = VOXEL_SIZE*1.5
+        result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
+            source_down, target_down, source_fpfh, target_fpfh, True,
+            distance_threshold,
+            o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True),
+            3, [
+                o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(
+                    0.9),
+                o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
+                    distance_threshold)
+            ], 
+            o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999)
+        )
+
+        #   - Then, we refine the registration
+        voxel_radius = [0.04, 0.02, 0.01]
+        max_iter = [50, 30, 14]
+        current_transformation = result.transformation
+        for scale in range(3):
+            iter = max_iter[scale]
+            radius = voxel_radius[scale]
+            print([iter, radius, scale])
+
+            print("3-1. Downsample with a voxel size %.2f" % radius)
+            source_down = source.voxel_down_sample(radius)
+            target_down = global_pc.voxel_down_sample(radius)
+
+            print("3-2. Estimate normal.")
+            source_down.estimate_normals(
+                o3d.geometry.KDTreeSearchParamHybrid(radius=radius * 2, max_nn=30))
+            target_down.estimate_normals(
+                o3d.geometry.KDTreeSearchParamHybrid(radius=radius * 2, max_nn=30))
+
+            print("3-3. Applying colored point cloud registration")
+            result_icp = o3d.pipelines.registration.registration_colored_icp(
+                source_down, target_down, radius, current_transformation,
+                o3d.pipelines.registration.TransformationEstimationForColoredICP(),
+                o3d.pipelines.registration.ICPConvergenceCriteria(relative_fitness=1e-6,
+                                                                relative_rmse=1e-6,
+                                                                max_iteration=iter))
+            current_transformation = result_icp.transformation
+
+        # Step 10. Store the aligned points and colors for use in future nodes
+        source = source.transform(current_transformation)
+        points = np.asarray(source.points)
+        colors = np.asarray(source.colors)
+        self.propagation_data.extend([points, colors, intrinsics, height, width])
+
+        # Step 11. Update global point cloud
+        global_pc += source
+
+        with self.global_lock:
+            self.global_pc['points'] = np.asarray(global_pc.points)
+            self.global_pc['colors'] = np.asarray(global_pc.colors)
 
         self.status.value = RENDERED
         print(f"Rendered {grid_id}!")
@@ -149,6 +210,18 @@ class User:
         self.position = np.array([0, 0])
         self.orientation = 'N'
         self.renders: dict[tuple[int, int], GridNode] = {}
+
+def prepare_registration(pcd):
+    pcd_down = pcd.voxel_down_sample(VOXEL_SIZE)
+    radius_normal = VOXEL_SIZE * 2
+    pcd_down.estimate_normals(
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+    
+    radius_feature = VOXEL_SIZE * 5
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
+        pcd_down,
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
+    return pcd_down, pcd_fpfh
 
 def preprocess(depth_map, rgb_image):
     """Convert the depth image into an array of 3D coordinates and and align the colors with those points"""

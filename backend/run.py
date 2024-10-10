@@ -15,6 +15,8 @@ import numpy as np
 import requests
 import logging
 from utils import *
+from multiprocessing import Manager, Process, Lock
+import multiprocessing
 
 app = Flask(__name__)
 CORS(app)
@@ -31,11 +33,10 @@ GOOGLE_MAPS_KEY = os.getenv('GOOGLE_MAPS_KEY')
 
 user = None
 
-
 @app.route('/start', methods=['POST'])
 @cross_origin()
 def start():
-    global user
+    global user, global_pc_dict, global_lock
 
     def download_image(url, mode):
         resp = requests.get(url)
@@ -81,22 +82,29 @@ def start():
         depth_map, color_image)
 
     user = User()
+    global_pc_dict['points'] = points
+    global_pc_dict['colors'] = colors
+
+    print("Set initial global point cloud")
 
     user.renders[(0, 0)] = GridNode(
         N=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                   height, width, 0, 0, "0,0 N"),
+                   height, width, 0, 0, "0,0 N",
+                   global_pc_dict, global_lock),
         NE=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                    height, width, 0, -45, "0,0 NE"),
+                    height, width, 0, -45, "0,0 NE",
+                    global_pc_dict, global_lock),
         NW=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                    height, width, 0, 45, "0,0 NW"),
+                    height, width, 0, 45, "0,0 NW",
+                    global_pc_dict, global_lock),
     )
     user.renders[(0, 1)] = GridNode(
         N=GridView(points.copy(), colors.copy(), intrinsics.copy(),
-                   height, width, 5, 0, "0,1 N"),
+                   height, width, 5, 0, "0,1 N",
+                   global_pc_dict, global_lock),
     )
 
     return jsonify({'status': 'success', 'image_url': image_url, 'depth_map_url': depth_url})
-
 
 @app.route('/move', methods=['POST'])
 @cross_origin()
@@ -152,24 +160,28 @@ def move():
         # Left of current view
         if node.views.get(VIEW_MAP[(orientation_num - 1) % 8]) is None:
             node.views[VIEW_MAP[(orientation_num - 1) % 8]] = GridView(*view.propagation_data, tf=0, rh=45,
-                                                                       grid_id=f"{user.position[0]},{user.position[1]} {VIEW_MAP[(orientation_num - 1) % 8]}")
+                                                                       grid_id=f"{user.position[0]},{user.position[1]} {VIEW_MAP[(orientation_num - 1) % 8]}",
+                                                                       global_pc_dict=global_pc_dict, global_lock=global_lock)
 
         # Right of current view
         if node.views.get(VIEW_MAP[(orientation_num + 1) % 8]) is None:
             node.views[VIEW_MAP[(orientation_num + 1) % 8]] = GridView(*view.propagation_data, tf=0, rh=-45,
-                                                                       grid_id=f"{user.position[0]},{user.position[1]} {VIEW_MAP[(orientation_num + 1) % 8]}")
+                                                                       grid_id=f"{user.position[0]},{user.position[1]} {VIEW_MAP[(orientation_num + 1) % 8]}",
+                                                                       global_pc_dict=global_pc_dict, global_lock=global_lock)
 
         # Forward from current view
         nn = tuple(user.position + VIEW_OFFSET_MAP[user.orientation])
         if user.renders.get(nn) is None:
             user.renders[nn] = GridNode(
                 **{
-                    user.orientation: GridView(*view.propagation_data, tf=5, rh=0, grid_id=f"{nn[0]},{nn[1]} {user.orientation}"),
+                    user.orientation: GridView(*view.propagation_data, tf=5, rh=0, grid_id=f"{nn[0]},{nn[1]} {user.orientation}",
+                                               global_pc_dict=global_pc_dict, global_lock=global_lock),
                 }
             )
         elif user.renders[nn].views.get(user.orientation) is None:
             user.renders[nn].views[user.orientation] = GridView(
-                *view.propagation_data, tf=5, rh=0, grid_id=f"{nn[0]},{nn[1]} {user.orientation}")
+                *view.propagation_data, tf=5, rh=0, grid_id=f"{nn[0]},{nn[1]} {user.orientation}",
+                global_pc_dict=global_pc_dict, global_lock=global_lock)
 
         node.views[user.orientation].status.value = PROPAGATED
 
@@ -428,4 +440,7 @@ def upload_to_gcs(file):
 
 
 if __name__ == '__main__':
+    global_manager = Manager()
+    global_lock = Lock()
+    global_pc_dict = global_manager.dict()
     app.run(debug=True)
